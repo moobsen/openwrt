@@ -3,6 +3,7 @@
 #
 
 include ./common-tp-link.mk
+include ./common-teltonika.mk
 
 DEFAULT_SOC := mt7628an
 
@@ -547,6 +548,62 @@ define Device/tama_w06
   DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci
 endef
 TARGET_DEVICES += tama_w06
+
+define Device/tlt-mt7628-common
+	SOC := mt7628an
+
+	DEVICE_FEATURES := small_flash sw-offload
+	MTDPARTS :=
+	BLOCKSIZE := 64k
+	KERNEL := kernel-bin | append-dtb | lzma | uImage lzma
+	KERNEL_INITRAMFS := kernel-bin | append-dtb | lzma | uImage lzma
+	DEVICE_DTS = $$(SOC)_$(1)
+	DEVICE_MTD_LOG_PARTNAME := mtdblock7
+
+	UBOOT_SIZE := 131072
+	CONFIG_SIZE := 65536
+	ART_SIZE := 196608
+	NO_ART := 0
+	IMAGE_SIZE := 15424k
+	MASTER_IMAGE_SIZE := 16384k
+
+	IMAGE/sysupgrade.bin = \
+			append-kernel | pad-to $$$$(BLOCKSIZE) | \
+			append-rootfs | pad-rootfs | append-metadata | \
+			check-size $$$$(IMAGE_SIZE)
+
+	IMAGE/master_fw.bin = \
+			append-tlt-uboot | pad-to $$$$(UBOOT_SIZE) | \
+			append-tlt-config | pad-to $$$$(CONFIG_SIZE) | \
+			append-tlt-art | pad-to $$$$(ART_SIZE) | \
+			append-kernel | pad-to $$$$(BLOCKSIZE) | \
+			append-rootfs | pad-rootfs | \
+			append-version | \
+			check-size $$$$(MASTER_IMAGE_SIZE)
+endef
+
+define Device/teltonika_rut956
+	$(Device/tlt-mt7628-common)
+	DEVICE_MODEL := RUT956
+	DEVICE_BOOT_NAME := tlt-rut956
+	DEVICE_FEATURES += gps usb-port serial modbus io wifi dualsim \
+			rndis ncm bacnet ntrip vendor_wifi mobile
+	# Default common packages for RUT9M series
+	# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# Essential must-have:
+	DEVICE_PACKAGES := kmod-spi-gpio kmod-gpio-nxp-74hc164 kmod-i2c-mt7628 \
+			   kmod-hwmon-mcp3021 kmod-hwmon-tla2021 kmod-cypress-serial
+
+	# USB related:
+	DEVICE_PACKAGES += kmod-usb2
+
+	# Wireless related:
+	DEVICE_PACKAGES += kmod-mt7628-netlink kmod-mt7628 mt7628-agent
+	# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	HW_MODS := mod1%2c7c_6005 mod2%TLA2021 mod3%CH343
+endef
+TARGET_DEVICES += teltonika_rut956
 
 define Device/totolink_a3
   IMAGE_SIZE := 7936k
